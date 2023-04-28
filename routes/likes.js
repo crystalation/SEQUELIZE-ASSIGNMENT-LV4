@@ -29,7 +29,6 @@ router.put('/posts/:postId/likes', authMiddleware, async (req, res) => {
   }
 });
 
-//좋아요가 적용된 게시글 조회
 router.get('/posts/likes', authMiddleware, async (req, res) => {
   try {
     const { userId } = res.locals.user;
@@ -44,10 +43,22 @@ router.get('/posts/likes', authMiddleware, async (req, res) => {
     const likedPosts = await Posts.findAll({
       where: { id: likedPostIds.map((like) => like.PostId) },
       include: { model: Users, attributes: ['id', 'nickname'] },
-      order: [['createdAt', 'DESC']],
     });
 
-    res.json({ likedPosts });
+    // 각 게시글에 대해 좋아요 수 계산
+    const postsWithLikeCounts = likedPosts.map((post) => {
+      const likeCount = likedPostIds.filter(
+        (like) => like.PostId === post.id
+      ).length;
+      return { ...post.toJSON(), likeCount };
+    });
+
+    // 좋아요 수에 따라 정렬
+    const sortedPosts = postsWithLikeCounts.sort(
+      (a, b) => b.likeCount - a.likeCount
+    );
+
+    res.json({ likedPosts: sortedPosts });
   } catch (error) {
     console.error(error);
     res.status(400).json({ message: '게시글 조회에 실패하였습니다.' });
